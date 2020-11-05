@@ -10,7 +10,7 @@ import tensorflow as tf
 import pandas as pd
 import matplotlib.pyplot as plt
 
-data = pd.read_csv('./dataset/income.csv')
+data = pd.read_csv('D:/BaiduNetdiskDownload/mygit/tensorflow2.0/dataset/income.csv')
 plt.scatter(data.Education,data.Income) #绘制散点图
 plt.show()
 
