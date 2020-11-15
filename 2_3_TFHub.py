@@ -23,6 +23,12 @@ print("GPU is", "available" if tf.config.experimental.list_physical_devices("GPU
 imdb = tf.keras.datasets.imdb
 (train_data, train_labels), (test_data, test_labels) = imdb.load_data(num_words=10000)
 train_examples_batch = train_data[:10]       #这样下载的数据类型是一个array类型不是Tensor类型
+
+train_data, validation_data, test_data = tfds.load(
+    name="imdb_reviews", 
+    split=('train[:60%]', 'train[60%:]', 'test'),
+    as_supervised=True)
+
 '''
 #这个数据是从tensorflow_datasets中下载数据
 #

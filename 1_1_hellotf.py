@@ -17,7 +17,6 @@ plt.show()
 x = data.Education
 y = data.Income
 
-
 model = tf.keras.Sequential()   #创建顺序框架，为空模型
 model.add(tf.keras.layers.Dense(1, input_shape = (1,))) #Dense层就是所谓的全连接神经网络层
 model.summary()  #反应模型整体信息 #ax+b
@@ -25,7 +24,6 @@ model.summary()  #反应模型整体信息 #ax+b
 model.compile(optimizer = 'adam',  #优化算法：梯度下降算法
               loss = 'mse')         #损失函数
               
-
 history = model.fit(x,y,epochs = 5000) #循环次数
 
 model.predict(x)

@@ -31,12 +31,11 @@ dataset_path
 '希格斯数据集'
 gz = tf.keras.utils.get_file('HIGGS.csv.gz', 'http://mlphysics.ics.uci.edu/data/higgs/HIGGS.csv.gz')
 
+数据集下载一次就会保存在 C:/Users/kdz-pc/.keras/datasets 中
+#(unicode error) 'unicodeescape' codec can't decode bytes in position 2428-2429: truncated \\UXXXXXXXX escape
+#即使在注释中，也不能有 \\U 的形式
 @author: kdz-pc
 """
-'''
-数据集下载依次就会保存在
-C:\Users\kdz-pc\.keras\datasets 下
-'''
 
 import tensorflow as tf
 from tensorflow import keras
@@ -123,7 +122,6 @@ history = model.fit(partial_x_train,
                     verbose=1)
 
 #评估模型
-
 results = model.evaluate(test_data,  test_labels, verbose=2)
 print(results)
 
