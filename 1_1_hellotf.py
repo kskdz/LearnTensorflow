@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 data = pd.read_csv('D:/BaiduNetdiskDownload/mygit/tensorflow2.0/dataset/income.csv')
 plt.scatter(data.Education,data.Income) #绘制散点图
+#data.plot.scatter('Education','Income')
 plt.show()
 
 x = data.Education
