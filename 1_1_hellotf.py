@@ -28,3 +28,4 @@ model.compile(optimizer = 'adam',  #优化算法：梯度下降算法
 history = model.fit(x,y,epochs = 5000) #循环次数
 
 model.predict(x)
+

@@ -3,6 +3,10 @@
 Created on Mon Nov 16 20:22:42 2020
     加载和预处理数据
         图像：以大量花卉图片为例子
+        
+    tensorflow默认是分配全部显存的，所以会导致显存爆掉。当然可以通过设置来调整：
+    import os
+    os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 @author: 67443
 """
 import tensorflow as tf
@@ -11,7 +15,9 @@ import os
 import random
 import IPython.display as display
 import matplotlib.pyplot as plt
+import time
 
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 '数据下载：花卉图像识别'
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
@@ -97,6 +103,7 @@ img_path = all_image_paths[0]
 img_path
 img_raw = tf.io.read_file(img_path)
 print(repr(img_raw)[:100]+"...")
+#repr() 函数将对象转化为供解释器读取的形式
 
 #解码为图像张量
 img_tensor = tf.image.decode_image(img_raw)
@@ -113,13 +120,19 @@ print(img_final.numpy().max())
 
 def preprocess_image(image):
   image = tf.image.decode_jpeg(image, channels=3)
-  image = tf.image.resize(image, [192, 192])
+  image = tf.image.resize(image, [192, 192])       
   image /= 255.0  # normalize to [0,1] range
   return image
 
 def load_and_preprocess_image(path):
   image = tf.io.read_file(path)
   return preprocess_image(image)
+'''
+使用张量形式读取文件：tf.io.read_file(path)
+重新编码：tf.image.decode_jpeg(image, channels=3) tf.image.decode_image(img_raw)
+同意整合大小：tf.image.resize(image, [192, 192])   #自带横向竖向压缩
+归一化：image /= 255.0  # normalize to [0,1] range
+'''
 
 image_path = all_image_paths[0]
 label = all_image_labels[0]
@@ -132,13 +145,34 @@ print()
 
 '''
 创建一个 tf.data.Dataset： from_tensor_slices方法
+    将原始数据集处理为统一的数据集类型 加速处理
+    from_tensor_slices: 将字符串数组切片，得到一个字符串数据集：
 '''
 path_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
 print(path_ds)
 image_ds = path_ds.map(load_and_preprocess_image, num_parallel_calls=AUTOTUNE)
+'''
+#例子1：
+t = tf.range(10.)[:, None]
+t = tf.data.Dataset.from_tensor_slices(t)
+#<TensorSliceDataset shapes: (1,), types: tf.float32>
+for i in t:
+    print(i.numpy())
+    
+#例子2：
+ts = tf.constant([[1, 2], [3, 4]])
+ds = tf.data.Dataset.from_tensor_slices(ts)   # [1, 2], [3, 4]
+
+Dataset常用方法：
+map接收一个函数，Dataset中的每个元素都会被当作这个函数的输入，并将函数返回值作为新的Dataset
+batch就是将多个元素组合成batch
+shuffle的功能为打乱dataset中的元素，它有一个参数buffersize，表示打乱时使用的buffer的大小
+repeat的功能就是将整个序列重复多次，主要用来处理机器学习中的epoch，假设原先的数据是一个epoch，使用repeat(5)就可以将之变成5个epoch
+    dataset = dataset.repeat(5)
+'''
 
 plt.figure(figsize=(8,8))
-for n, image in enumerate(image_ds.take(4)):
+for n, image in enumerate(image_ds.take(4)):    #另一种读取方法
   plt.subplot(2,2,n+1)
   plt.imshow(image)
   plt.grid(False)
@@ -149,14 +183,17 @@ for n, image in enumerate(image_ds.take(4)):
 
 #创建图像标签对 数据集
 label_ds = tf.data.Dataset.from_tensor_slices(tf.cast(all_image_labels, tf.int64))
+#函数的作用是执行 tensorflow 中张量数据类型转换
 for label in label_ds.take(10):
   print(label_names[label.numpy()])
 
+#合并两个数据集 组成新的数据集
 image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
 print(image_label_ds)
 
 ds = tf.data.Dataset.from_tensor_slices((all_image_paths, all_image_labels))
 
+'另一种创建方法:'
 # 元组被解压缩到映射函数的位置参数中
 def load_and_preprocess_from_path_label(path, label):
   return load_and_preprocess_image(path), label
@@ -171,6 +208,7 @@ image_label_ds
         永远重复。
         尽快提供 batch。
 '''
+
 BATCH_SIZE = 32
 
 # 设置一个和数据集大小一致的 shuffle buffer size（随机缓冲区大小）以保证数据
@@ -178,7 +216,9 @@ BATCH_SIZE = 32
 ds = image_label_ds.shuffle(buffer_size=image_count)
 ds = ds.repeat()
 ds = ds.batch(BATCH_SIZE)
-# 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。
+# 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。 
+#这样操作能确保下个批次始终对 GPU 可用，减少 GPU 的闲置时间。Buffer_size 是 GPU 预读取的批次数量。
+#通常 buffer_size=1 在多数情况下就足够了，特别是每批次的处理时间不断变化时，这样设置能协调时间。
 ds = ds.prefetch(buffer_size=AUTOTUNE)
 ds
 '''
@@ -201,7 +241,8 @@ ds = ds.batch(BATCH_SIZE)
 ds = ds.prefetch(buffer_size=AUTOTUNE)
 ds
 
-'传递数据集给模型'
+
+'传递数据集给模型'     #开始训练
 #从 tf.keras.applications 取得 MobileNet v2 副本。简单的迁移学习
 mobile_net = tf.keras.applications.MobileNetV2(input_shape=(192, 192, 3), include_top=False)
 mobile_net.trainable=False
@@ -215,6 +256,8 @@ keras_ds = ds.map(change_range)
 # 数据集可能需要几秒来启动，因为要填满其随机缓冲区。
 image_batch, label_batch = next(iter(keras_ds))
 
+#Failed to get convolution algorithm. This is probably because cuDNN failed to initialize
+#多半是由于显卡的显存爆了
 feature_map_batch = mobile_net(image_batch)
 print(feature_map_batch.shape)
 
@@ -243,10 +286,12 @@ steps_per_epoch
 
 model.fit(ds, epochs=1, steps_per_epoch=3)
 
+'''
 '性能分析'
+'''
 #上面使用的简单 pipeline（管道）在每个 epoch 中单独读取每个文件。
 #在本地使用 CPU 训练时这个方法是可行的，但是可能不足以进行 GPU 训练并且完全不适合任何形式的分布式训练。
-import time
+
 default_timeit_steps = 2*steps_per_epoch+1
 
 def timeit(ds, steps=default_timeit_steps):
@@ -344,3 +389,7 @@ ds = ds.apply(
 ds=ds.batch(BATCH_SIZE).prefetch(AUTOTUNE)
 ds
 timeit(ds)
+
+'''
+更多数据会在：
+'''
