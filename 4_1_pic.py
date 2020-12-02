@@ -19,6 +19,11 @@ import time
 
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 '数据下载：花卉图像识别'
+'''
+tf.data模块运行时，使用多线程进行数据通道处理，从而实现并行，这种操作几乎是透明的。
+如果使用值tf.data.experimental.AUTOTUNE，则根据可用的CPU动态设置并行调用的数量。
+一般情况下，将所有的数据处理通道放在cpu上，以此保证gpu仅用于训练深度神经网络模型。
+'''
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 #tensorflow中大量data数据放在keras中
@@ -192,6 +197,13 @@ image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
 print(image_label_ds)
 
 ds = tf.data.Dataset.from_tensor_slices((all_image_paths, all_image_labels))
+'''
+两个数据集：
+    一个是数据和标签的集合 image_label_ds
+    一个是数据名（路径）和标签的集合 ds
+    ds的主要目的是方便之后的各种打乱、重复、创建缓冲区的操作，不涉及具体数据
+    加快处理速度
+'''
 
 '另一种创建方法:'
 # 元组被解压缩到映射函数的位置参数中
@@ -201,6 +213,11 @@ def load_and_preprocess_from_path_label(path, label):
 image_label_ds = ds.map(load_and_preprocess_from_path_label)
 image_label_ds
 '''
+当GPU执行在当前批次执行前向或者后向传播时，我们希望CPU处理下一个批次的数据，以便于数据批次能够迅速被GPU使用。我们希望GPU被完全、时刻用于训练。
+我们称这种机制为消费者/生产者重叠，消费者是GPU，生产者是CPU。
+使用tf.data，你可以轻易的做到只一点，只需要在通道末尾调用dataset.prefetch(1)。
+这将总是预取一个批次的数据，并且保证总有一个数据准备好被消耗。
+
 训练的基本方法：
     将数据打包为tf.data之后就可以利用其api快速实现
         充分打乱。
@@ -211,8 +228,7 @@ image_label_ds
 
 BATCH_SIZE = 32
 
-# 设置一个和数据集大小一致的 shuffle buffer size（随机缓冲区大小）以保证数据
-# 被充分打乱。
+# 设置一个和数据集大小一致的 shuffle buffer size（随机缓冲区大小）以保证数据被充分打乱。
 ds = image_label_ds.shuffle(buffer_size=image_count)
 ds = ds.repeat()
 ds = ds.batch(BATCH_SIZE)

@@ -61,6 +61,7 @@ all_labeled_data = all_labeled_data.shuffle(
 '''
 shuffle(buffer_size, seed=None,reshuffle_each_iteration=True)
 buffer_size参数，指元素的个数，最完美的shuffle是所有数据一起shuffle,但是避免内存不够，每次选buffer_size个数据进行shuffle
+打乱时候，buffer_size越打越好
 默认reshuffle_each_iteration=True,即下次对dataset操作（如切片、复制、取batch）时都会再次执行洗牌操作。
     则表示每次迭代时都应对数据集进行伪随机重组
 '''
@@ -111,7 +112,6 @@ def encode_map_fn(text, label):
   label.set_shape([])
   
   return encoded_text, label
-
 
 all_encoded_data = all_labeled_data.map(encode_map_fn)
 
